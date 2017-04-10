@@ -1,4 +1,7 @@
-import asyncio, asyncssh
+import asyncio
+import asyncssh
+from spuds import Potatoes
+
 
 async def run_client(host, command):
     async with asyncssh.connect(host, known_hosts=None) as conn:
@@ -6,7 +9,8 @@ async def run_client(host, command):
 
 async def run_multiple_clients():
     # Put your lists of hosts here
-    hosts = ['0potato', '1potato', '2potato', '3potato', '4potato']
+    potatoes = Potatoes()
+    hosts = potatoes.all
 
     tasks = (run_client(host, 'hostname') for host in hosts)
     results = await asyncio.gather(*tasks, return_exceptions=True)
