@@ -1,7 +1,9 @@
 import asyncio
 import asyncssh
-import re
+import argparse
+import itertools
 from spuds import Potatoes
+from collections import OrderedDict
 
 
 async def run_client(host, command):
@@ -15,7 +17,6 @@ async def run_multiple_clients():
 
     tasks = [run_client(host, 'hostname && uptime') for host in hosts]
     results = await asyncio.gather(*tasks, return_exceptions=True)
-    # results, pending = await asyncio.wait(tasks)
 
     for i, result in enumerate(results, 1):
         if isinstance(result, Exception):
@@ -25,17 +26,25 @@ async def run_multiple_clients():
             print(result.stderr, end='')
         else:
             print('Task %d succeeded:' % i)
-            print(parse_load(result.stdout), end='')
         print()
         print(75*'-')
 
 
-def parse_load(line):
-    """Parses the load from a line of uptime output"""
-    if 'load average' in line:
-        samples = [float(val.replace(',', '')) for val in line.split()[-3:]]
-        return sum(samples) / len(samples)
-    else:
-        return 0
+def parse_params(params):
+    result = OrderedDict()
+    for _p in params:
+        result[_p[0]] = _p[1:]
+    return result
 
-asyncio.get_event_loop().run_until_complete(run_multiple_clients())
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument('command', help='the base command to run')
+    parser.add_argument('--params', '-p', action='append', nargs='+',
+                        help='specifies a parameter - multiple values may be used, and may be used more than once')
+    args = parser.parse_args()
+    params = parse_params(args.params)
+    print(args.command, params, params.values())
+    # combinations are same as in insertion order
+    combos = list(itertools.product(*params.values()))
+    print('# of combos:', len(combos))
+    #asyncio.get_event_loop().run_until_complete(run_multiple_clients())
