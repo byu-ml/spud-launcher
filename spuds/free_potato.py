@@ -4,12 +4,12 @@ import argparse
 from spuds import Potatoes
 
 
-async def run_client(host, command):
+async def get_load(host):
     async with asyncssh.connect(host, known_hosts=None) as conn:
-        return await conn.run(command)
+        return await conn.run('uptime')
 
 async def free_potatoes(hosts, limit=4.):
-    tasks = [run_client(host, 'uptime') for host in hosts]
+    tasks = [get_load(host) for host in hosts]
     responses = await asyncio.gather(*tasks, return_exceptions=True)
 
     results = []
