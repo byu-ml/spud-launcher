@@ -8,15 +8,13 @@ async def get_load(host):
     async with asyncssh.connect(host, known_hosts=None) as conn:
         return await conn.run('uptime')
 
-async def free_potatoes(hosts, limit=4.):
+async def free_potatoes(hosts, limit=4., verbose=False):
     tasks = [get_load(host) for host in hosts]
     responses = await asyncio.gather(*tasks, return_exceptions=True)
-
+    verbose_results = []
     results = []
-
-    for i, result in enumerate(responses):
-        available = False
-        r = {'host': hosts[i], 'message': None, 'load': 0}
+    for i, (result, host) in enumerate(zip(responses, hosts)):
+        r = {'host': host, 'message': None, 'load': 0, 'available': False}
         if isinstance(result, Exception):
             r['message'] = 'Task %d failed: %s' % (i, str(result))
         elif result.exit_status != 0:
@@ -25,11 +23,17 @@ async def free_potatoes(hosts, limit=4.):
             r['message'] = 'Task %d succeeded:' % i
             value = parse_load(result)
             if value <= limit:
-                available = True
+                r['available'] = True
                 r['load'] = value
-        if available:
-            results.append(r)
-    return sorted(results, key=lambda _r: _r['load'])
+        # store verbose results
+        verbose_results.append(r)
+        # store normal results as tuple
+        if r['available']:
+            results.append((host, r['load']))
+    if verbose:
+        return sorted(verbose_results, key=lambda _r: _r['load'])
+    else:
+        return sorted(results, key=lambda _r: _r[1])
 
 
 def parse_load(result):
@@ -50,4 +54,5 @@ if __name__ == "__main__":
     p = Potatoes()
     hosts = p.all
     r = asyncio.get_event_loop().run_until_complete(free_potatoes(hosts))
-    print(r)
+    for _r in r:
+        print(_r)
