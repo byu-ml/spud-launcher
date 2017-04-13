@@ -5,6 +5,7 @@ import itertools
 from spuds import Potatoes
 from spuds.free_potato import free_potatoes
 from collections import OrderedDict
+from concurrent.futures import FIRST_COMPLETED
 
 
 async def run_client(host, command):
@@ -17,7 +18,7 @@ async def run_multiple_clients(hosts, commands):
     # results = await asyncio.gather(*tasks, return_exceptions=True)
     available = await free_potatoes(hosts)
     for comms in get_commands(commands, available):
-        tasks = [run_client(h[0], 'echo "echo: ' + c + '"') for c, h in zip(comms, available)]
+        tasks = [run_client(h[0], c) for c, h in zip(comms, available)]
         results = await asyncio.gather(*tasks, return_exceptions=True)
         for i, result in enumerate(results):
             if isinstance(result, Exception):
@@ -32,6 +33,7 @@ async def run_multiple_clients(hosts, commands):
             print(75*'-')
         # update availability
         _next = await free_potatoes(hosts)
+        print("...")
         available = await asyncio.sleep(2, _next)
 
     # tasks = [run_client(host[0], 'pwd') for host in available]
