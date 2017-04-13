@@ -9,3 +9,11 @@ class Potatoes:
             for line in f.readlines():
                 data.append(line.replace('\n',''))
             return data
+
+    @property
+    def spuds(self):
+        with open('/config/potatoes/allexceptyams', 'r') as f:
+            data = []
+            for line in f.readlines():
+                data.append(line.replace('\n',''))
+            return data

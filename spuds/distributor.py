@@ -3,6 +3,7 @@ import asyncssh
 import argparse
 import itertools
 from spuds import Potatoes
+from spuds.free_potato import free_potatoes
 from collections import OrderedDict
 
 
@@ -10,15 +11,17 @@ async def run_client(host, command):
     async with asyncssh.connect(host, known_hosts=None) as conn:
         return await conn.run(command)
 
-async def run_multiple_clients():
-    # Put your lists of hosts here
-    potatoes = Potatoes()
-    hosts = potatoes.all
+async def run_multiple_clients(hosts, commands):
 
-    tasks = [run_client(host, 'hostname && uptime') for host in hosts]
+    # tasks = [run_client(host, 'pwd') for host in hosts]
+    # results = await asyncio.gather(*tasks, return_exceptions=True)
+    available = await free_potatoes(hosts)
+    # print(available)
+
+    tasks = [run_client(host[0], 'pwd') for host in available]
     results = await asyncio.gather(*tasks, return_exceptions=True)
 
-    for i, result in enumerate(results, 1):
+    for i, result in enumerate(results):
         if isinstance(result, Exception):
             print('Task %d failed: %s' % (i, str(result)))
         elif result.exit_status != 0:
@@ -26,6 +29,7 @@ async def run_multiple_clients():
             print(result.stderr, end='')
         else:
             print('Task %d succeeded:' % i)
+            print(result.stdout)
         print()
         print(75*'-')
 
@@ -41,10 +45,25 @@ if __name__ == "__main__":
     parser.add_argument('command', help='the base command to run')
     parser.add_argument('--params', '-p', action='append', nargs='+',
                         help='specifies a parameter - multiple values may be used, and may be used more than once')
+    parser.add_argument('--dry', action='store_true', help='dry-run to show how many jobs would be dispatched')
     args = parser.parse_args()
     params = parse_params(args.params)
-    print(args.command, params, params.values())
     # combinations are same as in insertion order
     combos = list(itertools.product(*params.values()))
     print('# of combos:', len(combos))
-    #asyncio.get_event_loop().run_until_complete(run_multiple_clients())
+    # assemble as commands
+    _commands = []
+    for i, _combo in enumerate(combos):
+        _p = args.command
+        for k, v in zip(params.keys(), _combo):
+            _p += ' -' + k + ' ' + str(v)
+        _commands.append(_p)
+        if args.dry:
+            print('Job ' + str(i) + ":", _p)
+    # distribute commands
+    p = Potatoes()
+    _hosts = p.spuds
+    if not args.dry:
+        asyncio.get_event_loop().run_until_complete(run_multiple_clients(_hosts, _commands))
+    else:
+        print("--dry run")
